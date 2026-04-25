@@ -1,0 +1,17 @@
+{
+  "name": "facescan-ai",
+  "version": "1.0.0",
+  "description": "Live Face Scan AI - Age & Gender Detection with Full-Stack Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "keywords": ["face-detection", "age-gender", "ai", "express"],
+  "author": "FaceScan AI",
+  "license": "MIT"
+}

@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FaceScan AI</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09090f;--surface:#111119;--surface2:#18181f;--surface3:#22222c;
+  --border:rgba(130,120,220,0.14);--border2:rgba(130,120,220,0.24);
+  --accent:#6c63ff;--accent2:#00e5c3;--accent3:#ff6b9d;
+  --text:#e8e8f2;--text2:#a0a0c0;--text3:#5a5a80;
+  --red:#ff5555;--green:#00e5c3;--yellow:#ffd166;
+  --glow-a:rgba(108,99,255,0.15);--glow-b:rgba(0,229,195,0.08);
+}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(108,99,255,0.035) 1px,transparent 1px),linear-gradient(90deg,rgba(108,99,255,0.035) 1px,transparent 1px);background-size:52px 52px;pointer-events:none;z-index:0;}
+
+/* ── NAV ── */
+nav{position:sticky;top:0;z-index:100;background:rgba(9,9,15,0.88);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 1.5rem;height:56px;display:flex;align-items:center;justify-content:space-between;}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-box{width:28px;height:28px;border:2px solid var(--accent2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--accent2);}
+.brand-name{font-family:'Space Mono',monospace;font-size:1rem;font-weight:700;color:var(--text);letter-spacing:-0.03em;}
+.brand-name span{color:var(--accent2);}
+.nav-links{display:flex;align-items:center;gap:4px;}
+.nav-tab{padding:0.35rem 0.9rem;border:none;background:transparent;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:500;cursor:pointer;border-radius:7px;transition:background 0.18s,color 0.18s;}
+.nav-tab:hover{background:var(--surface2);color:var(--text);}
+.nav-tab.active{background:var(--surface2);color:var(--accent2);}
+.server-badge{display:flex;align-items:center;gap:6px;padding:0.3rem 0.75rem;border:1px solid var(--border);border-radius:999px;font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--text3);}
+.srv-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);transition:background 0.3s;}
+.srv-dot.ok{background:var(--green);box-shadow:0 0 5px var(--green);}
+.srv-dot.err{background:var(--red);}
+
+/* ── PAGES ── */
+.page{display:none;position:relative;z-index:1;width:100%;max-width:1100px;margin:0 auto;padding:1.5rem 1rem 4rem;}
+.page.active{display:block;}
+
+/* ── SCAN PAGE ── */
+.scan-layout{display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start;}
+@media(max-width:900px){.scan-layout{grid-template-columns:1fr;}}
+
+/* Camera */
+.cam-section{display:flex;flex-direction:column;gap:1rem;}
+.cam-frame{position:relative;width:100%;aspect-ratio:4/3;background:var(--surface);border-radius:16px;overflow:hidden;border:1px solid var(--border);}
+video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);}
+canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);}
+.corner{position:absolute;width:20px;height:20px;z-index:4;pointer-events:none;}
+.tl{top:10px;left:10px;border-top:2px solid var(--accent2);border-left:2px solid var(--accent2);border-radius:4px 0 0 0;}
+.tr{top:10px;right:10px;border-top:2px solid var(--accent2);border-right:2px solid var(--accent2);border-radius:0 4px 0 0;}
+.bl{bottom:10px;left:10px;border-bottom:2px solid var(--accent2);border-left:2px solid var(--accent2);border-radius:0 0 0 4px;}
+.br{bottom:10px;right:10px;border-bottom:2px solid var(--accent2);border-right:2px solid var(--accent2);border-radius:0 0 4px 0;}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,229,195,0.75),transparent);z-index:3;animation:scan 2.5s linear infinite;pointer-events:none;display:none;}
+@keyframes scan{0%{top:0%;opacity:0;}5%{opacity:1;}95%{opacity:1;}100%{top:100%;opacity:0;}}
+.placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.7rem;z-index:2;background:var(--surface);}
+.placeholder p{font-size:0.8rem;color:var(--text3);text-align:center;max-width:200px;line-height:1.6;}
+#overlay{position:absolute;inset:0;background:rgba(9,9,15,0.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;z-index:10;border-radius:16px;padding:1.5rem;}
+#overlay.show{display:flex;}
+.spinner{width:34px;height:34px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin 0.75s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#overlay p{font-family:'Space Mono',monospace;font-size:0.68rem;color:var(--text2);letter-spacing:0.06em;text-align:center;max-width:280px;line-height:1.7;}
+#overlay p.err{color:#ff8080;}
+.face-badge{position:absolute;top:10px;right:10px;background:rgba(9,9,15,0.82);border:1px solid var(--border);border-radius:999px;padding:3px 9px;font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--text3);z-index:5;transition:all 0.3s;}
+.face-badge.on{color:var(--accent2);border-color:rgba(0,229,195,0.35);}
+
+/* Controls */
+.ctrl-row{display:flex;align-items:center;gap:0.7rem;flex-wrap:wrap;}
+.status-pill{display:flex;align-items:center;gap:6px;padding:0.4rem 0.9rem;background:var(--surface);border:1px solid var(--border);border-radius:999px;font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--text3);}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background 0.3s;}
+.sdot.go{background:var(--accent2);box-shadow:0 0 6px var(--accent2);animation:blink 1.4s infinite;}
+.sdot.err{background:var(--red);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.35;}}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:0.65rem 1.4rem;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:500;cursor:pointer;transition:all 0.2s;}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 16px rgba(108,99,255,0.38);}
+.btn-primary:hover:not(:disabled){background:#7d75ff;transform:translateY(-1px);}
+.btn-stop{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+.btn-stop:hover:not(:disabled){background:var(--surface3);}
+.btn-sm{padding:0.4rem 0.9rem;font-size:0.78rem;border-radius:7px;}
+.btn-danger{background:rgba(255,85,85,0.12);color:#ff8080;border:1px solid rgba(255,85,85,0.2);}
+.btn-danger:hover{background:rgba(255,85,85,0.2);}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none!important;}
+
+/* Result cards */
+.result-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;}
+@media(max-width:600px){.result-cards{grid-template-columns:repeat(2,1fr);}}
+.rcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.1rem;transition:border-color 0.3s,box-shadow 0.3s;}
+.rcard.lit{border-color:rgba(108,99,255,0.3);box-shadow:0 0 14px var(--glow-a);}
+.rlabel{font-family:'Space Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:0.35rem;}
+.rval{font-family:'Space Mono',monospace;font-size:1.85rem;font-weight:700;color:var(--text);line-height:1;min-height:1.85rem;transition:color 0.3s;}
+.rval.hi{color:var(--accent2);}
+.rsub{font-size:0.7rem;color:var(--text3);margin-top:0.25rem;min-height:0.85rem;}
+.barw{margin-top:0.55rem;background:var(--surface2);border-radius:999px;height:3px;overflow:hidden;}
+.bar{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width 0.5s ease;}
+
+/* Side panel */
+.side-panel{display:flex;flex-direction:column;gap:1rem;}
+.panel-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.2rem;}
+.panel-title{font-family:'Space Mono',monospace;font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:0.9rem;display:flex;align-items:center;gap:7px;}
+.panel-title::before{content:'';display:inline-block;width:3px;height:12px;background:var(--accent2);border-radius:2px;}
+
+/* Live log */
+#liveLog{display:flex;flex-direction:column;gap:0.5rem;max-height:260px;overflow-y:auto;}
+#liveLog::-webkit-scrollbar{width:4px;}
+#liveLog::-webkit-scrollbar-track{background:transparent;}
+#liveLog::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px;}
+.log-item{display:flex;align-items:center;gap:8px;padding:0.45rem 0.6rem;background:var(--surface2);border-radius:8px;font-size:0.75rem;animation:slideIn 0.25s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:none;}}
+.log-gender{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65rem;flex-shrink:0;}
+.log-gender.m{background:rgba(108,99,255,0.2);color:#9d97ff;}
+.log-gender.f{background:rgba(0,229,195,0.15);color:var(--accent2);}
+.log-info{flex:1;}
+.log-age{font-family:'Space Mono',monospace;font-size:0.78rem;font-weight:700;color:var(--text);}
+.log-time{font-size:0.65rem;color:var(--text3);}
+.log-empty{font-size:0.75rem;color:var(--text3);text-align:center;padding:1rem 0;}
+
+/* Session stats */
+.sess-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;}
+.sess-stat{background:var(--surface2);border-radius:8px;padding:0.6rem 0.75rem;}
+.ss-label{font-size:0.62rem;color:var(--text3);margin-bottom:0.2rem;}
+.ss-val{font-family:'Space Mono',monospace;font-size:1.1rem;font-weight:700;color:var(--text);}
+.ss-val.a{color:var(--accent2);}
+
+/* Error box */
+#errorBox{display:none;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:10px;padding:0.8rem 1rem;font-size:0.8rem;color:#ffaaaa;line-height:1.7;margin-top:0.5rem;}
+#errorBox.show{display:block;}
+#errorBox strong{color:#ff7070;display:block;margin-bottom:0.2rem;}
+
+/* ── HISTORY PAGE ── */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;}
+.page-title{font-family:'Space Mono',monospace;font-size:1.1rem;font-weight:700;color:var(--text);}
+.filters{display:flex;gap:0.5rem;flex-wrap:wrap;}
+.filter-btn{padding:0.3rem 0.8rem;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:999px;font-size:0.75rem;cursor:pointer;transition:all 0.18s;}
+.filter-btn.active,.filter-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.history-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+th{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);padding:0.75rem 1rem;text-align:left;border-bottom:1px solid var(--border);background:var(--surface2);}
+td{padding:0.65rem 1rem;font-size:0.82rem;border-bottom:1px solid var(--border);color:var(--text2);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(108,99,255,0.04);}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:0.68rem;font-weight:500;}
+.badge-m{background:rgba(108,99,255,0.15);color:#a09bff;}
+.badge-f{background:rgba(0,229,195,0.12);color:var(--accent2);}
+.pagination{display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:1rem;border-top:1px solid var(--border);}
+.pg-btn{width:32px;height:32px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);border-radius:7px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;transition:all 0.18s;}
+.pg-btn:hover:not(:disabled){background:var(--accent);color:#fff;border-color:var(--accent);}
+.pg-btn:disabled{opacity:0.3;cursor:not-allowed;}
+.pg-info{font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--text3);padding:0 0.5rem;}
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--text3);font-size:0.85rem;}
+
+/* ── ANALYTICS PAGE ── */
+.analytics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem 1.3rem;}
+.mc-label{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:0.5rem;}
+.mc-val{font-family:'Space Mono',monospace;font-size:2rem;font-weight:700;color:var(--text);line-height:1;}
+.mc-val.accent{color:var(--accent2);}
+.mc-sub{font-size:0.72rem;color:var(--text3);margin-top:0.3rem;}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+@media(max-width:700px){.charts-row{grid-template-columns:1fr;}}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem 1.3rem;}
+.chart-title{font-family:'Space Mono',monospace;font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;}
+
+/* Gender donut */
+.donut-wrap{display:flex;align-items:center;gap:1.5rem;}
+.donut{position:relative;width:100px;height:100px;flex-shrink:0;}
+.donut svg{transform:rotate(-90deg);}
+.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.donut-pct{font-family:'Space Mono',monospace;font-size:1rem;font-weight:700;color:var(--text);}
+.donut-lbl{font-size:0.6rem;color:var(--text3);}
+.legend{display:flex;flex-direction:column;gap:0.5rem;}
+.leg-item{display:flex;align-items:center;gap:7px;font-size:0.78rem;color:var(--text2);}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* Age bar chart */
+.age-bars{display:flex;flex-direction:column;gap:0.5rem;}
+.age-bar-row{display:flex;align-items:center;gap:0.6rem;}
+.age-bar-label{font-size:0.68rem;color:var(--text3);width:70px;flex-shrink:0;}
+.age-bar-track{flex:1;background:var(--surface2);border-radius:999px;height:8px;overflow:hidden;}
+.age-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 0.6s ease;}
+.age-bar-count{font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--text3);width:24px;text-align:right;flex-shrink:0;}
+
+/* API docs tab */
+.api-grid{display:grid;gap:0.9rem;}
+.api-endpoint{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;}
+.api-method{display:inline-block;padding:2px 8px;border-radius:4px;font-family:'Space Mono',monospace;font-size:0.65rem;font-weight:700;margin-right:8px;}
+.get{background:rgba(0,229,195,0.12);color:var(--accent2);}
+.post{background:rgba(108,99,255,0.15);color:#a09bff;}
+.delete{background:rgba(255,85,85,0.12);color:#ff8080;}
+.api-path{font-family:'Space Mono',monospace;font-size:0.82rem;color:var(--text);}
+.api-desc{font-size:0.78rem;color:var(--text2);margin-top:0.4rem;}
+
+/* Scrollbar global */
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
+
+/* Privacy */
+.privacy{font-size:0.68rem;color:var(--text3);text-align:center;margin-top:1rem;line-height:1.5;}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="#">
+    <div class="logo-box">FS</div>
+    <span class="brand-name">Face<span>Scan</span> AI</span>
+  </a>
+  <div class="nav-links">
+    <button class="nav-tab active" onclick="showPage('scan',this)">Live Scan</button>
+    <button class="nav-tab" onclick="showPage('history',this)">History</button>
+    <button class="nav-tab" onclick="showPage('analytics',this)">Analytics</button>
+    <button class="nav-tab" onclick="showPage('api',this)">API Docs</button>
+  </div>
+  <div class="server-badge">
+    <div class="srv-dot" id="srvDot"></div>
+    <span id="srvTxt">server</span>
+  </div>
+</nav>
+
+<!-- ═══════════ SCAN PAGE ═══════════ -->
+<div class="page active" id="page-scan">
+  <div class="scan-layout">
+
+    <!-- Left: camera + cards -->
+    <div class="cam-section">
+      <div class="cam-frame">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <div class="scan-line" id="scanLine"></div>
+        <div class="face-badge" id="badge">0 FACES</div>
+        <div class="placeholder" id="ph">
+          <svg width="58" height="58" viewBox="0 0 58 58" fill="none">
+            <rect x="3" y="3" width="52" height="52" rx="8" stroke="#6c63ff" stroke-width="1.5" stroke-dasharray="6 4"/>
+            <circle cx="29" cy="23" r="9" stroke="#6c63ff" stroke-width="1.5"/>
+            <path d="M9 51c0-10 9-17 20-17s20 7 20 17" stroke="#6c63ff" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <p>Click Start Camera to begin live detection</p>
+        </div>
+        <div id="overlay">
+          <div class="spinner" id="spinner"></div>
+          <p id="overlayMsg">Loading…</p>
+        </div>
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="status-pill"><div class="sdot" id="sdot"></div><span id="statusTxt">Ready</span></div>
+        <button class="btn btn-primary" id="btnStart" onclick="toggle()">
+          <svg width="13" height="13" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><circle cx="6.5" cy="6.5" r="2.3" fill="currentColor"/></svg>
+          Start Camera
+        </button>
+        <button class="btn btn-sm btn-stop" onclick="clearHistory()" style="margin-left:auto;">Clear Log</button>
+      </div>
+
+      <div id="errorBox"></div>
+
+      <div class="result-cards">
+        <div class="rcard" id="cAge">
+          <div class="rlabel">Estimated Age</div>
+          <div class="rval" id="vAge">—</div>
+          <div class="rsub" id="sAge">No face yet</div>
+          <div class="barw"><div class="bar" id="bAge"></div></div>
+        </div>
+        <div class="rcard" id="cGender">
+          <div class="rlabel">Gender</div>
+          <div class="rval" id="vGender">—</div>
+          <div class="rsub" id="sGender">No face yet</div>
+          <div class="barw"><div class="bar" id="bGender"></div></div>
+        </div>
+        <div class="rcard" id="cFps">
+          <div class="rlabel">FPS</div>
+          <div class="rval" id="vFps">—</div>
+          <div class="rsub">Detection speed</div>
+          <div class="barw"><div class="bar" id="bFps"></div></div>
+        </div>
+      </div>
+      <p class="privacy">All AI processing runs locally in your browser. Scan logs are saved to the backend.</p>
+    </div>
+
+    <!-- Right: side panel -->
+    <div class="side-panel">
+      <div class="panel-box">
+        <div class="panel-title">Session Stats</div>
+        <div class="sess-grid">
+          <div class="sess-stat"><div class="ss-label">Scans</div><div class="ss-val a" id="sessScans">0</div></div>
+          <div class="sess-stat"><div class="ss-label">Avg Age</div><div class="ss-val" id="sessAvgAge">—</div></div>
+          <div class="sess-stat"><div class="ss-label">Male</div><div class="ss-val" id="sessMale">0</div></div>
+          <div class="sess-stat"><div class="ss-label">Female</div><div class="ss-val" id="sessFemale">0</div></div>
+        </div>
+      </div>
+
+      <div class="panel-box">
+        <div class="panel-title">Live Log</div>
+        <div id="liveLog"><div class="log-empty">No scans yet</div></div>
+      </div>
+
+      <div class="panel-box" id="serverInfoBox">
+        <div class="panel-title">Backend Status</div>
+        <div style="font-size:0.75rem;color:var(--text2);line-height:1.8;" id="serverInfoContent">
+          Checking server…
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ HISTORY PAGE ═══════════ -->
+<div class="page" id="page-history">
+  <div class="page-header">
+    <div class="page-title">Scan History</div>
+    <div class="filters">
+      <button class="filter-btn active" onclick="filterHistory('all',this)">All</button>
+      <button class="filter-btn" onclick="filterHistory('male',this)">Male</button>
+      <button class="filter-btn" onclick="filterHistory('female',this)">Female</button>
+    </div>
+    <button class="btn btn-sm btn-danger" onclick="deleteAllScans()">Delete All</button>
+  </div>
+  <div class="history-table-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Age</th><th>Gender</th><th>Confidence</th><th>Faces</th><th>Session</th><th>Time</th>
+      </tr></thead>
+      <tbody id="historyBody"><tr><td colspan="7"><div class="empty-state">Loading history…</div></td></tr></tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<!-- ═══════════ ANALYTICS PAGE ═══════════ -->
+<div class="page" id="page-analytics">
+  <div class="page-header">
+    <div class="page-title">Analytics</div>
+    <button class="btn btn-sm btn-stop" onclick="loadAnalytics()">↻ Refresh</button>
+  </div>
+  <div class="analytics-grid" id="analyticsMetrics">
+    <div class="metric-card"><div class="mc-label">Total Scans</div><div class="mc-val accent" id="mTotal">—</div></div>
+    <div class="metric-card"><div class="mc-label">Avg Age</div><div class="mc-val" id="mAvgAge">—</div></div>
+    <div class="metric-card"><div class="mc-label">Age Range</div><div class="mc-val" id="mRange">—</div></div>
+    <div class="metric-card"><div class="mc-label">Sessions</div><div class="mc-val" id="mSessions">—</div></div>
+  </div>
+  <div class="charts-row">
+    <div class="chart-box">
+      <div class="chart-title">Gender Distribution</div>
+      <div class="donut-wrap" id="genderChart">
+        <div style="font-size:0.78rem;color:var(--text3);">No data yet</div>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Age Groups</div>
+      <div class="age-bars" id="ageChart">
+        <div style="font-size:0.78rem;color:var(--text3);">No data yet</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ API DOCS PAGE ═══════════ -->
+<div class="page" id="page-api">
+  <div class="page-header"><div class="page-title">REST API Reference</div></div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;margin-bottom:1rem;font-size:0.82rem;color:var(--text2);line-height:1.7;">
+    Base URL: <code style="font-family:'Space Mono',monospace;color:var(--accent2);" id="baseUrlDisplay">http://localhost:3000/api</code>
+    &nbsp;·&nbsp; All responses are JSON &nbsp;·&nbsp; No auth required
+  </div>
+  <div class="api-grid">
+    <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/api/health</span><div class="api-desc">Server health check. Returns uptime, version, total scan count.</div></div>
+    <div class="api-endpoint"><span class="api-method post">POST</span><span class="api-path">/api/scan</span><div class="api-desc">Log a single scan result. Body: <code style="font-family:'Space Mono',monospace;font-size:0.75rem;">{ age, gender, genderConfidence, facesDetected, sessionId }</code></div></div>
+    <div class="api-endpoint"><span class="api-method post">POST</span><span class="api-path">/api/scans/batch</span><div class="api-desc">Log multiple scans at once. Body: <code style="font-family:'Space Mono',monospace;font-size:0.75rem;">{ scans: [...], sessionId }</code></div></div>
+    <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/api/scans?page=1&limit=20&gender=male</span><div class="api-desc">Paginated scan history. Filter by gender or sessionId.</div></div>
+    <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/api/stats</span><div class="api-desc">Analytics: total scans, avg/min/max age, gender counts, age group breakdown.</div></div>
+    <div class="api-endpoint"><span class="api-method post">POST</span><span class="api-path">/api/session</span><div class="api-desc">Start a new scan session. Returns a session ID to attach to subsequent scans.</div></div>
+    <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/api/session/:id</span><div class="api-desc">Get stats and scan log for a specific session.</div></div>
+    <div class="api-endpoint"><span class="api-method delete">DELETE</span><span class="api-path">/api/scans</span><div class="api-desc">Delete all scan history from the server.</div></div>
+  </div>
+</div>
+
+<!-- ══════ SCRIPTS ══════ -->
+<script>
+(function(){
+"use strict";
+
+// ── Config ──────────────────────────────────────────────────────────────
+var API_BASE = window.location.origin + '/api'; // auto-detect backend
+var CDNS = [
+  'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js',
+  'https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js'
+];
+var MODEL_BASES = [
+  'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights',
+  'https://unpkg.com/face-api.js@0.22.2/weights'
+];
+
+// Set API base URL display
+document.getElementById('baseUrlDisplay').textContent = API_BASE;
+
+// ── State ────────────────────────────────────────────────────────────────
+var running=false, mediaStream=null, animFrame=null;
+var frameCount=0, lastFpsTime=performance.now(), fps=0;
+var faceApiLoaded=false;
+var sessionId=null;
+var sessionScans=[], localLog=[];
+var historyFilter='all', historyPage=1;
+var batchBuffer=[], batchTimer=null;
+var serverOnline=false;
+
+var video=document.getElementById('video');
+var canvas=document.getElementById('canvas');
+var ctx=canvas.getContext('2d');
+
+// ── Utils ─────────────────────────────────────────────────────────────────
+function loadScript(urls,i){
+  return new Promise(function(res,rej){
+    if(i>=urls.length){rej(new Error('CDN fail'));return;}
+    var s=document.createElement('script');
+    s.src=urls[i];s.onload=res;s.onerror=function(){loadScript(urls,i+1).then(res).catch(rej);};
+    document.head.appendChild(s);
+  });
+}
+function fmt(d){var dt=new Date(d);return dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+function fmtFull(d){var dt=new Date(d);return dt.toLocaleDateString()+' '+dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function ageGroup(a){if(a<13)return'Child';if(a<18)return'Teen';if(a<25)return'Young Adult';if(a<35)return'Adult';if(a<50)return'Middle Age';if(a<65)return'Senior';return'Elder';}
+function apiCall(method,path,body){
+  var opts={method:method,headers:{'Content-Type':'application/json'}};
+  if(body)opts.body=JSON.stringify(body);
+  return fetch(API_BASE+path,opts).then(function(r){return r.json();}).catch(function(){return null;});
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+window.showPage=function(id,el){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('page-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  if(id==='history')loadHistory();
+  if(id==='analytics')loadAnalytics();
+};
+
+// ── Server health ─────────────────────────────────────────────────────────
+function checkServer(){
+  apiCall('GET','/health').then(function(data){
+    var dot=document.getElementById('srvDot'),txt=document.getElementById('srvTxt');
+    if(data&&data.status==='ok'){
+      serverOnline=true;
+      dot.className='srv-dot ok';txt.textContent='online';
+      document.getElementById('serverInfoContent').innerHTML=
+        'Status: <span style="color:var(--accent2)">Online</span><br>'+
+        'Uptime: '+data.uptime+'s<br>'+
+        'Total scans: '+data.totalScans+'<br>'+
+        'Version: '+data.version;
+    } else {
+      serverOnline=false;dot.className='srv-dot err';txt.textContent='offline';
+      document.getElementById('serverInfoContent').innerHTML=
+        'Status: <span style="color:var(--red)">Offline</span><br>'+
+        '<span style="font-size:0.7rem">Start server with: node server.js</span>';
+    }
+  });
+}
+checkServer();
+setInterval(checkServer,15000);
+
+// ── Session ───────────────────────────────────────────────────────────────
+function startSession(){
+  apiCall('POST','/session').then(function(data){
+    if(data&&data.id){sessionId=data.id;console.log('Session:',sessionId);}
+    else{sessionId='local-'+Date.now();}
+  });
+}
+
+// ── Batch save to backend ─────────────────────────────────────────────────
+function flushBatch(){
+  if(!batchBuffer.length||!serverOnline)return;
+  var payload=batchBuffer.splice(0);
+  apiCall('POST','/scans/batch',{scans:payload,sessionId:sessionId});
+}
+function scheduleBatch(){
+  if(batchTimer)clearTimeout(batchTimer);
+  batchTimer=setTimeout(flushBatch,3000);
+}
+
+// ── Status helpers ────────────────────────────────────────────────────────
+function setStatus(t,s){
+  document.getElementById('statusTxt').textContent=t;
+  var d=document.getElementById('sdot');
+  d.className='sdot'+(s==='go'?' go':s==='err'?' err':'');
+}
+function showOv(msg,err){
+  var ov=document.getElementById('overlay');ov.classList.add('show');
+  var p=document.getElementById('overlayMsg');p.textContent=msg;p.className=err?'err':'';
+  document.getElementById('spinner').style.display=err?'none':'block';
+}
+function hideOv(){document.getElementById('overlay').classList.remove('show');}
+function showErr(html){var b=document.getElementById('errorBox');b.innerHTML=html;b.classList.add('show');}
+function clearErr(){document.getElementById('errorBox').classList.remove('show');}
+
+function resetCards(){
+  ['Age','Gender','Fps'].forEach(function(k){
+    document.getElementById('v'+k).textContent='—';
+    document.getElementById('v'+k).classList.remove('hi');
+    document.getElementById('b'+k).style.width='0%';
+    var s=document.getElementById('s'+k);if(s)s.textContent='No face yet';
+    document.getElementById('c'+k).classList.remove('lit');
+  });
+  document.getElementById('badge').textContent='0 FACES';
+  document.getElementById('badge').classList.remove('on');
+}
+
+// ── Session stats ─────────────────────────────────────────────────────────
+function updateSessionStats(){
+  document.getElementById('sessScans').textContent=sessionScans.length;
+  if(!sessionScans.length){document.getElementById('sessAvgAge').textContent='—';return;}
+  var avg=Math.round(sessionScans.reduce(function(a,b){return a+b.age;},0)/sessionScans.length);
+  document.getElementById('sessAvgAge').textContent=avg;
+  document.getElementById('sessMale').textContent=sessionScans.filter(function(s){return s.gender==='male';}).length;
+  document.getElementById('sessFemale').textContent=sessionScans.filter(function(s){return s.gender==='female';}).length;
+}
+
+// ── Live log ──────────────────────────────────────────────────────────────
+function addLogItem(age,gender,time){
+  localLog.unshift({age:age,gender:gender,time:time||new Date().toISOString()});
+  if(localLog.length>50)localLog=localLog.slice(0,50);
+  renderLog();
+}
+function renderLog(){
+  var el=document.getElementById('liveLog');
+  if(!localLog.length){el.innerHTML='<div class="log-empty">No scans yet</div>';return;}
+  el.innerHTML=localLog.slice(0,12).map(function(l){
+    return '<div class="log-item">'+
+      '<div class="log-gender '+(l.gender==='male'?'m':'f')+'">'+(l.gender==='male'?'♂':'♀')+'</div>'+
+      '<div class="log-info"><div class="log-age">'+l.age+' yrs · '+l.gender+'</div><div class="log-time">'+fmt(l.time)+'</div></div>'+
+      '</div>';
+  }).join('');
+}
+window.clearHistory=function(){localLog=[];sessionScans=[];renderLog();updateSessionStats();};
+
+// ── Toggle ────────────────────────────────────────────────────────────────
+window.toggle=function(){if(running)stopScan();else startScan();};
+
+function startScan(){
+  clearErr();
+  var btn=document.getElementById('btnStart');btn.disabled=true;
+  var chain=Promise.resolve();
+
+  if(!faceApiLoaded){
+    setStatus('Loading library…');showOv('Loading face-api.js…');
+    chain=chain.then(function(){return loadScript(CDNS,0).then(function(){faceApiLoaded=true;});}).catch(function(){
+      showErr('<strong>Library failed to load.</strong> Check your internet connection and disable any ad-blockers, then reload.');
+      showOv('Library load failed',true);setStatus('Load error','err');btn.disabled=false;throw new Error('abort');
+    });
+  }
+
+  chain=chain.then(function(){
+    setStatus('Requesting camera…');showOv('Waiting for camera permission…');
+    return navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},facingMode:'user'}});
+  }).then(function(s){
+    mediaStream=s;video.srcObject=s;
+    return new Promise(function(res,rej){video.onloadedmetadata=res;setTimeout(function(){rej(new Error('timeout'));},10000);});
+  }).then(function(){return video.play();})
+  .catch(function(e){
+    if(e.message==='abort')throw e;
+    var msg='';
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){msg='<strong>Camera API unavailable.</strong> Open this page via http://localhost:3000 in Chrome/Firefox.';}
+    else if(e.name==='NotAllowedError'){msg='<strong>Camera permission denied.</strong><br>Click the camera icon in the address bar → Allow → Reload.';}
+    else if(e.name==='NotFoundError'){msg='<strong>No camera found.</strong> Plug in a webcam and try again.';}
+    else if(e.name==='NotReadableError'){msg='<strong>Camera in use.</strong> Close Zoom/Teams/other apps using the camera.';}
+    else{msg='<strong>Camera error: '+e.name+'</strong><br>'+e.message;}
+    showErr(msg);showOv('Camera failed',true);setStatus('Camera error','err');btn.disabled=false;throw new Error('abort');
+  });
+
+  chain=chain.then(function(){
+    setStatus('Loading AI models…');showOv('Downloading AI models (first load ~15s)…');
+    function tryBase(bases,i){
+      if(i>=bases.length)return Promise.reject(new Error('All model sources failed'));
+      return Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(bases[i]),
+        faceapi.nets.ageGenderNet.loadFromUri(bases[i]),
+        faceapi.nets.faceLandmark68TinyNet.loadFromUri(bases[i])
+      ]).catch(function(){return tryBase(bases,i+1);});
+    }
+    return tryBase(MODEL_BASES,0);
+  }).catch(function(e){
+    if(e.message==='abort')throw e;
+    showErr('<strong>AI models failed to load.</strong><br>• Disable ad-blocker/VPN for this page<br>• Use Chrome or Firefox<br>• Check internet connection');
+    showOv('Model load failed',true);setStatus('Model error','err');
+    if(mediaStream){mediaStream.getTracks().forEach(function(t){t.stop();});mediaStream=null;}
+    video.srcObject=null;btn.disabled=false;throw new Error('abort');
+  });
+
+  chain.then(function(){
+    hideOv();
+    document.getElementById('ph').style.display='none';
+    document.getElementById('scanLine').style.display='block';
+    running=true;btn.disabled=false;
+    btn.className='btn btn-stop';
+    btn.innerHTML='<svg width="13" height="13" viewBox="0 0 13 13"><rect x="2" y="2" width="4" height="9" rx="1" fill="currentColor"/><rect x="7" y="2" width="4" height="9" rx="1" fill="currentColor"/></svg> Stop';
+    setStatus('Scanning…','go');clearErr();
+    startSession();
+    requestAnimationFrame(detectLoop);
+  }).catch(function(e){if(e.message!=='abort')console.error(e);});
+}
+
+function stopScan(){
+  running=false;flushBatch();
+  if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}
+  if(mediaStream){mediaStream.getTracks().forEach(function(t){t.stop();});mediaStream=null;}
+  video.srcObject=null;ctx.clearRect(0,0,canvas.width,canvas.height);
+  document.getElementById('ph').style.display='flex';
+  document.getElementById('scanLine').style.display='none';
+  hideOv();
+  var btn=document.getElementById('btnStart');
+  btn.className='btn btn-primary';
+  btn.innerHTML='<svg width="13" height="13" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><circle cx="6.5" cy="6.5" r="2.3" fill="currentColor"/></svg> Start Camera';
+  resetCards();setStatus('Ready','');
+}
+
+// ── Detect loop ────────────────────────────────────────────────────────────
+var lastSaveTime=0;
+function detectLoop(){
+  if(!running)return;
+  var w=video.videoWidth||640,h=video.videoHeight||480;
+  if(canvas.width!==w)canvas.width=w;
+  if(canvas.height!==h)canvas.height=h;
+
+  faceapi.detectAllFaces(video,new faceapi.TinyFaceDetectorOptions({inputSize:416,scoreThreshold:0.4}))
+    .withFaceLandmarks(true).withAgeAndGender()
+    .then(function(dets){
+      frameCount++;
+      var now=performance.now();
+      if(now-lastFpsTime>=1000){
+        fps=Math.round(frameCount*1000/(now-lastFpsTime));
+        frameCount=0;lastFpsTime=now;
+        document.getElementById('vFps').textContent=fps;
+        document.getElementById('bFps').style.width=Math.min(100,fps*6)+'%';
+        document.getElementById('cFps').classList.add('lit');
+      }
+      ctx.clearRect(0,0,w,h);
+      if(!dets||!dets.length){
+        resetCards();
+        if(fps>0){document.getElementById('vFps').textContent=fps;document.getElementById('cFps').classList.add('lit');}
+        if(running)animFrame=requestAnimationFrame(detectLoop);return;
+      }
+      var resized=faceapi.resizeResults(dets,{width:w,height:h});
+      document.getElementById('badge').textContent=dets.length+(dets.length===1?' FACE':' FACES');
+      document.getElementById('badge').classList.add('on');
+
+      resized.forEach(function(d,i){
+        var box=d.detection.box,age=d.age,gender=d.gender,prob=d.genderProbability;
+        var col=gender==='male'?'#6c63ff':'#00e5c3';
+        ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(box.x,box.y,box.width,box.height);
+        var cs=14;ctx.lineWidth=3;ctx.strokeStyle=col;
+        [[box.x,box.y,1,1],[box.x+box.width,box.y,-1,1],[box.x,box.y+box.height,1,-1],[box.x+box.width,box.y+box.height,-1,-1]].forEach(function(c){
+          ctx.beginPath();ctx.moveTo(c[0]+c[2]*cs,c[1]);ctx.lineTo(c[0],c[1]);ctx.lineTo(c[0],c[1]+c[3]*cs);ctx.stroke();
+        });
+        var lbl=Math.round(age)+'y · '+gender+' '+Math.round(prob*100)+'%';
+        ctx.font='700 11px "Space Mono",monospace';
+        var tw=ctx.measureText(lbl).width;
+        var lx=box.x,ly=box.y>26?box.y-26:box.y+box.height+4;
+        ctx.fillStyle='rgba(9,9,15,0.85)';ctx.beginPath();ctx.roundRect(lx-1,ly-2,tw+14,22,5);ctx.fill();
+        ctx.fillStyle=col;ctx.fillText(lbl,lx+6,ly+13);
+        if(i===0){
+          var a=Math.round(age);
+          document.getElementById('vAge').textContent=a;document.getElementById('vAge').classList.add('hi');
+          document.getElementById('sAge').textContent=ageGroup(a);
+          document.getElementById('bAge').style.width=Math.min(100,a*1.25)+'%';
+          document.getElementById('cAge').classList.add('lit');
+          var g=gender.charAt(0).toUpperCase()+gender.slice(1);
+          document.getElementById('vGender').textContent=g;document.getElementById('vGender').classList.add('hi');
+          document.getElementById('sGender').textContent=Math.round(prob*100)+'% confidence';
+          document.getElementById('bGender').style.width=Math.round(prob*100)+'%';
+          document.getElementById('cGender').classList.add('lit');
+
+          // Save every 2 seconds
+          var nowMs=Date.now();
+          if(nowMs-lastSaveTime>2000){
+            lastSaveTime=nowMs;
+            var entry={age:a,gender:gender,genderConfidence:Math.round(prob*100)/100,facesDetected:dets.length};
+            sessionScans.push(entry);
+            addLogItem(a,gender);
+            updateSessionStats();
+            batchBuffer.push(entry);
+            scheduleBatch();
+          }
+        }
+      });
+      if(running)animFrame=requestAnimationFrame(detectLoop);
+    }).catch(function(){if(running)animFrame=requestAnimationFrame(detectLoop);});
+}
+
+// ── History page ─────────────────────────────────────────────────────────
+window.filterHistory=function(f,el){
+  historyFilter=f;historyPage=1;
+  document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');});
+  if(el)el.classList.add('active');
+  loadHistory();
+};
+function loadHistory(){
+  var url='/scans?page='+historyPage+'&limit=15'+(historyFilter!=='all'?'&gender='+historyFilter:'');
+  apiCall('GET',url).then(function(data){
+    if(!data){document.getElementById('historyBody').innerHTML='<tr><td colspan="7"><div class="empty-state">Server offline. Start server with: node server.js</div></td></tr>';return;}
+    if(!data.scans||!data.scans.length){document.getElementById('historyBody').innerHTML='<tr><td colspan="7"><div class="empty-state">No scans found</div></td></tr>';document.getElementById('pagination').innerHTML='';return;}
+    document.getElementById('historyBody').innerHTML=data.scans.map(function(s,idx){
+      return '<tr>'+
+        '<td style="color:var(--text3);font-family:Space Mono,monospace;font-size:0.7rem;">'+(data.total-(historyPage-1)*15-idx)+'</td>'+
+        '<td style="font-family:Space Mono,monospace;font-weight:700;">'+s.age+'</td>'+
+        '<td><span class="badge '+(s.gender==='male'?'badge-m':'badge-f')+'">'+s.gender+'</span></td>'+
+        '<td>'+(s.genderConfidence?Math.round(s.genderConfidence*100)+'%':'—')+'</td>'+
+        '<td>'+s.facesDetected+'</td>'+
+        '<td style="font-family:Space Mono,monospace;font-size:0.65rem;color:var(--text3);">'+(s.sessionId?s.sessionId.slice(0,12)+'…':'—')+'</td>'+
+        '<td style="font-size:0.75rem;color:var(--text3);">'+fmtFull(s.timestamp)+'</td>'+
+        '</tr>';
+    }).join('');
+    renderPagination(data.page,data.pages);
+  });
+}
+function renderPagination(current,total){
+  if(total<=1){document.getElementById('pagination').innerHTML='';return;}
+  var html='<button class="pg-btn" '+(current<=1?'disabled':'')+' onclick="gotoPage('+(current-1)+')">‹</button>';
+  html+='<span class="pg-info">'+current+' / '+total+'</span>';
+  html+='<button class="pg-btn" '+(current>=total?'disabled':'')+' onclick="gotoPage('+(current+1)+')">›</button>';
+  document.getElementById('pagination').innerHTML=html;
+}
+window.gotoPage=function(p){historyPage=p;loadHistory();};
+window.deleteAllScans=function(){
+  if(!confirm('Delete all scan history from the server?'))return;
+  apiCall('DELETE','/scans').then(function(data){
+    if(data&&data.success){loadHistory();loadAnalytics();}
+    else alert('Server offline.');
+  });
+};
+
+// ── Analytics page ─────────────────────────────────────────────────────────
+window.loadAnalytics=function(){
+  apiCall('GET','/stats').then(function(data){
+    if(!data||!data.all){
+      document.getElementById('mTotal').textContent='—';
+      return;
+    }
+    var s=data.all;
+    document.getElementById('mTotal').textContent=s.totalScans;
+    document.getElementById('mAvgAge').textContent=s.avgAge||'—';
+    document.getElementById('mRange').textContent=s.totalScans?s.minAge+'–'+s.maxAge+'y':'—';
+    document.getElementById('mSessions').textContent=data.sessionCount||0;
+
+    // Gender donut
+    var m=s.maleCount||0,f=s.femaleCount||0,tot=m+f||1;
+    var mPct=Math.round(m/tot*100),fPct=100-mPct;
+    var r=36,circ=2*Math.PI*r,mDash=circ*mPct/100;
+    document.getElementById('genderChart').innerHTML=
+      '<div class="donut">'+
+      '<svg width="100" height="100" viewBox="0 0 100 100">'+
+      '<circle cx="50" cy="50" r="'+r+'" fill="none" stroke="rgba(108,99,255,0.1)" stroke-width="12"/>'+
+      '<circle cx="50" cy="50" r="'+r+'" fill="none" stroke="#6c63ff" stroke-width="12" stroke-dasharray="'+mDash+' '+circ+'" stroke-linecap="round"/>'+
+      '<circle cx="50" cy="50" r="'+r+'" fill="none" stroke="#00e5c3" stroke-width="12" stroke-dasharray="'+(circ*fPct/100)+' '+circ+'" stroke-dashoffset="'+(-mDash)+'" stroke-linecap="round"/>'+
+      '</svg>'+
+      '<div class="donut-center"><div class="donut-pct">'+s.totalScans+'</div><div class="donut-lbl">total</div></div>'+
+      '</div>'+
+      '<div class="legend">'+
+      '<div class="leg-item"><div class="leg-dot" style="background:#6c63ff;"></div>Male: '+m+' ('+mPct+'%)</div>'+
+      '<div class="leg-item"><div class="leg-dot" style="background:#00e5c3;"></div>Female: '+f+' ('+fPct+'%)</div>'+
+      '</div>';
+
+    // Age bars
+    var groups=s.ageGroups||{};
+    var labels=[['child','Child'],['teen','Teen'],['youngAdult','Young Adult'],['adult','Adult'],['middleAge','Middle Age'],['senior','Senior'],['elder','Elder']];
+    var maxCount=Math.max.apply(null,labels.map(function(l){return groups[l[0]]||0;})||[1]);
+    document.getElementById('ageChart').innerHTML=labels.map(function(l){
+      var cnt=groups[l[0]]||0;
+      var pct=maxCount>0?Math.round(cnt/maxCount*100):0;
+      return '<div class="age-bar-row">'+
+        '<div class="age-bar-label">'+l[1]+'</div>'+
+        '<div class="age-bar-track"><div class="age-bar-fill" style="width:'+pct+'%"></div></div>'+
+        '<div class="age-bar-count">'+cnt+'</div>'+
+        '</div>';
+    }).join('');
+  });
+};
+
+// Pre-load script silently
+loadScript(CDNS,0).then(function(){faceApiLoaded=true;}).catch(function(){});
+
+})();
+</script>
+</body>
+</html>
