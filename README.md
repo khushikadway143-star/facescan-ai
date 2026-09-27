@@ -1,24 +1,24 @@
 # FaceScan — Real-Time Face, Age & Gender Detection System
 
-An interactive full-stack computer vision application featuring browser-based real-time facial feature extraction, age estimation, and gender classification integrated with an Express.js analytics backend.
+An interactive full-stack computer vision application featuring browser-based real-time facial feature extraction, age estimation and gender classification integrated with an Express.js analytics backend.
 
----
+-:-:-:-
 
 ## Overview
 
 FaceScan runs deep learning inference directly on the client side using TensorFlow.js (`face-api.js`), tracking facial landmarks and estimating demographic attributes in real time without sending raw video feeds over the network. Detection logs and session statistics are aggregated and served via an Express REST API.
 
----
+-:-:-:-
 
 ## Features
 
 * **Client-Side Real-Time Inference:** Continuous webcam stream tracking with bounding box overlays and age/gender confidence percentages.
 * **Multi-Face Tracking:** Detects and labels multiple individuals within the same frame simultaneously.
-* **REST API & Analytics:** Express backend routes for logging scans, querying paginated session history, and compiling demographic breakdowns.
-* **Privacy-First Design:** Video frames never leave the browser; only lightweight analytical metadata is transferred to the server.
+* **REST API & Analytics:** Express backend routes for logging scans, querying paginated session history and compiling demographic breakdowns.
+* **Privacy-First Design:** Video frames never leave the browser, only lightweight analytical metadata is transferred to the server.
 * **CDN Model Fallbacks:** Configured network fallbacks to load pre-trained neural network weights reliably.
 
----
+-:-:-:-
 
 ## Tech Stack
 
@@ -26,12 +26,12 @@ FaceScan runs deep learning inference directly on the client side using TensorFl
 * **Backend:** Node.js, Express.js
 * **Data Layer:** File-based JSON datastore (`data/scans.json`)
 
----
+-:-:-:-
 
 ## API Endpoints
 
 | Method | Endpoint | Description |
-| :--- | :--- | :--- |
+
 | `POST` | `/api/scan` | Log a single detection record |
 | `POST` | `/api/scans/batch` | Batch upload multiple detected faces |
 | `GET` | `/api/scans` | Retrieve paginated history with date/gender filters |
@@ -40,7 +40,7 @@ FaceScan runs deep learning inference directly on the client side using TensorFl
 | `GET` | `/api/health` | Service uptime and health check |
 | `DELETE` | `/api/scans` | Clear scan records |
 
----
+-:-:-:-
 
 ## Getting Started
 
@@ -89,7 +89,7 @@ No images or video frames are ever sent to the server — only the detected age/
 ## Troubleshooting
 
 | Problem | Fix |
-|---|---|
+
 | Camera permission denied | Click the lock icon in address bar → Allow camera → Reload |
 | Models fail to load | Disable ad-blocker/VPN for localhost, check internet |
 | Server shows offline | Run `npm start` and open via `http://localhost:3000` |
